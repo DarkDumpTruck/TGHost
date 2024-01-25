@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  server:
+    image: cloudgame-registry.cn-shanghai.cr.aliyuncs.com/paas/server:latest
+    network: host
+    container_name: server
+    restart: always
+    volumes:
+      - ./config:/config
+      - /var/log/server:/data/applog
