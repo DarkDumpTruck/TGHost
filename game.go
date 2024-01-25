@@ -76,6 +76,22 @@ func (g *Game) Run() error {
 			return true
 		})
 	})
+	g.vm.Set("appendStatusAll", func(status string) {
+		for _, player := range g.Players {
+			player := player
+			go func() {
+				player.statusMutex.Lock()
+				player.status += status
+				player.statusMutex.Unlock()
+
+				player.wsMsgChans.Range(func(key, value interface{}) bool {
+					channel := key.(chan string)
+					channel <- "update"
+					return true
+				})
+			}()
+		}
+	})
 
 	_, err := g.vm.RunString(g.code)
 	if err != nil {

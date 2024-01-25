@@ -111,7 +111,8 @@ function outputStatus(player) {
 initAll()
 let inputs = getInputAll('游戏即将开始，请输入【准备】', '已准备', 900, '', ['input:[准备]', 'input:[准备]'])
 if (inputs[0] != '准备' || inputs[1] != '准备') {
-	throw 'Game not ready, quit.'
+	appendStatusAll('等待玩家准备超时。')
+	return
 }
 while (!checkGameEnd()) {
 	startTurn()
@@ -123,7 +124,5 @@ while (!checkGameEnd()) {
 
 let result = finalResult()
 alertAll(result)
-for(let i = 0; i < gameState.players.length; i++) {
-	updateStatus(i, outputStatus(gameState.players[i]) + '\n' + result)
-}
+appendStatusAll(result)
 

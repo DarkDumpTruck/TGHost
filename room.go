@@ -106,7 +106,7 @@ func (r *Room) GetPlayerStatus(player *Player) PlayerStatus {
 	return PlayerStatus{
 		GameName:   r.script.Name,
 		GameStatus: player.status,
-		InputDone:  player.inputDone,
+		InputDone:  player.inputDone || player.inputTimeout,
 		InputDDL:   player.inputDDL,
 		InputId:    player.inputId,
 		InputMsg:   player.inputMsg,
