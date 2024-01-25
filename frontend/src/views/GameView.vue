@@ -137,12 +137,14 @@ onUnmounted(() => {
     </div>
     <div class="space-y-2">
       <p class="text-lg">
-        {{ playerStatus?.inputMsg }}
+        <span v-if="playerStatus?.inputMsg">
+          {{ playerStatus?.inputMsg }} ，
+        </span>
         <span v-if="playerStatus?.inputDone === false">
-          ，剩余 {{ inputDDL }} 秒
+          剩余 {{ inputDDL }} 秒
         </span>
         <span v-else>
-          ，正在等待其他玩家。
+          正在等待其他玩家。
         </span>
       </p>
       <div v-show="playerStatus?.inputType?.startsWith('input')">

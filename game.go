@@ -1,6 +1,7 @@
 package tghost
 
 import (
+	"fmt"
 	"sync"
 	"tghost/pkg/logger"
 
@@ -9,6 +10,7 @@ import (
 
 type Game struct {
 	Players []*Player
+	Running bool
 
 	vm   *goja.Runtime
 	code string
@@ -43,20 +45,23 @@ func (g *Game) Run() error {
 			}()
 		}
 	})
-	g.vm.Set("getInputAll", func(msg string, succMsg string, timeout int, defaultValue string, inputTypes []string) []string {
+	g.vm.Set("getInputs", func(msg string, succMsg string, timeout int, defaultValue string, indexes []int, inputTypes []string, checkers []func(string)bool) []string {
+		count := len(indexes)
 		wg := sync.WaitGroup{}
-		wg.Add(len(g.Players))
+		wg.Add(count)
 		result := make([]string, len(g.Players))
-		for i, player := range g.Players {
-			index := i
-			player := player
+		for _, index := range indexes {
+			index := index
 			go func() {
 				defer wg.Done()
+				player := g.Players[index]
 				value, err := player.GetInput(msg, timeout, defaultValue, inputTypes[index])
 				if err != nil {
 					logger.Info("player.GetInput error:", logger.Err(err))
 					return
 				}
+				checkResult := checkers[index](value)
+				fmt.Println("checkResult:", checkResult) // TODO: use check result to retry
 				result[index] = value
 				player.inputMsg = succMsg
 			}()
@@ -93,9 +98,23 @@ func (g *Game) Run() error {
 		}
 	})
 
+	g.Running = true
+	defer func() {
+		g.Running = false
+	}()
 	_, err := g.vm.RunString(g.code)
 	if err != nil {
 		return err
 	}
+	
+	var main func() int
+	err = g.vm.ExportTo(g.vm.Get("main"), &main)
+	if err != nil {
+		return err
+	}
+
+	code := main()
+	logger.Info("Game finished with code", logger.Int("code", code))
+
 	return nil
 }

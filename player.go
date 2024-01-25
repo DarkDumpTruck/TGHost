@@ -38,6 +38,7 @@ func NewPlayer(name string, index int) *Player {
 		statusMutex: &sync.Mutex{},
 		inputMutex:  &sync.Mutex{},
 	}
+	fmt.Print(p)
 	return &p
 }
 
