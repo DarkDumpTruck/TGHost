@@ -11,6 +11,7 @@ const gameNames: Record<string,string> = {
 
 const name = ref("")
 const game = ref("")
+const showCode = ref(false)
 const code = ref("")
 const playerNum = ref(2)
 const hidden = ref(false)
@@ -18,6 +19,9 @@ const hidden = ref(false)
 async function onGameChange (game: string) {
   name.value = game
   code.value = await fetch(`/assets/${gameNames[game]}.template`).then(resp => resp.text())
+  if(game == '自定义游戏') {
+    showCode.value = true
+  }
 }
 
 async function onConfirm () {
@@ -45,7 +49,8 @@ async function onConfirm () {
         <el-form-item label="房间名">
         <el-input v-model="name" placeholder="房间名"></el-input>
         </el-form-item>
-        <el-form-item label="游戏代码">
+        <el-checkbox v-model="showCode">显示游戏代码</el-checkbox>
+        <el-form-item label="游戏代码" v-if="showCode">
         <el-input v-model="code" placeholder="游戏代码" type="textarea" :autosize="{ minRows: 5, maxRows: 15 }" />
         </el-form-item>
         <el-form-item label="人数">
