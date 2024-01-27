@@ -24,7 +24,14 @@ export async function listRoom (): Promise<Room[]> {
     return response.data
 }
 
-export async function createRoom (params: { name: string, code: string, playerNum: number, hidden: boolean }) {
+export async function createRoom (params: {
+    name: string,
+    code: string,
+    playerNum: number,
+    botNum: number,
+    judgeNum: number,
+    hidden: boolean,
+}) {
     const response = await v1.post("/room/create", params)
     return response.data
 }
@@ -32,6 +39,7 @@ export async function createRoom (params: { name: string, code: string, playerNu
 export interface PlayerStatus {
     gameName: string
     gameStatus: string
+    gameRunning: boolean
     inputDone: boolean
     inputDDL: number
     inputId: string

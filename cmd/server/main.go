@@ -22,7 +22,7 @@ var cfgPath string
 func setupHTTPRoutes() (*gin.Engine, error) {
 	app := gin.New()
 	app.Use(func(c *gin.Context) {
-		logger.Info("http request",
+		logger.Debug("http request",
 			logger.String("host", c.Request.Host),
 			logger.String("path", c.Request.URL.Path),
 			logger.String("method", c.Request.Method),
@@ -34,11 +34,11 @@ func setupHTTPRoutes() (*gin.Engine, error) {
 			return
 		}
 		c.Next()
-		logger.Info("http response",
+		logger.Debug("http response",
 			logger.Int("status", c.Writer.Status()),
 		)
 	})
-	
+
 	pprof.Register(app, "debug/pprof")
 	app.Group("metrics").Use(func(c *gin.Context) {
 		promhttp.Handler().ServeHTTP(c.Writer, c.Request)
@@ -56,13 +56,16 @@ func setupHTTPRoutes() (*gin.Engine, error) {
 	v1 := app.Group("api/v1")
 	room := v1.Group("room")
 	room.GET("list", func(c *gin.Context) {
-		c.IndentedJSON(200, tghost.ListRooms())
+		showHidden := c.Query("showHidden") == "true"
+		c.IndentedJSON(200, tghost.ListRooms(showHidden))
 	})
 	room.POST("create", func(c *gin.Context) {
 		req := struct {
 			Name      string `json:"name"`
 			Code      string `json:"code"`
 			PlayerNum int    `json:"playerNum"`
+			BotNum    int    `json:"botNum"`
+			JudgeNum  int    `json:"judgeNum"`
 			Hidden    bool   `json:"hidden"`
 		}{}
 
@@ -74,10 +77,10 @@ func setupHTTPRoutes() (*gin.Engine, error) {
 		script := &tghost.Script{
 			Name:      req.Name,
 			Code:      req.Code,
-			PlayerNum: req.PlayerNum,
+			PlayerNum: req.PlayerNum + req.BotNum + req.JudgeNum,
 		}
 
-		r := tghost.NewRoom(script, req.Hidden)
+		r := tghost.NewRoom(script, req.Hidden, req.BotNum)
 		go func() {
 			defer func() {
 				if err := recover(); err != nil {
@@ -174,8 +177,6 @@ func setupHTTPRoutes() (*gin.Engine, error) {
 			return
 		}
 		defer ws.Close()
-
-		fmt.Println("New websocket connection from", player.Name)
 
 		room.Echo(player, ws)
 	})

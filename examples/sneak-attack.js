@@ -20,10 +20,6 @@ let gameState = {
 	winner: -1,
 }
 
-function blankChecker() {
-	return true;
-}
-
 function initAll() {
 	gameState.players = getPlayers()
 	for(let i = 0; i < gameState.players.length; i++) {
@@ -54,21 +50,23 @@ function stepTurn() {
 		}
 	} else {
 		alertAll('第 ' + gameState.turn + ' 轮开始')
-		let checker_0 = (input) => { return 0 <= input && input <= gameState.coins[0]; }
-		let checker_1 = (input) => { return 0 <= input && input <= gameState.coins[1]; }
+		let checkers = [];
+		for(let i = 0; i < 2; i++) {
+			checkers.push(numberInRangeChecker(0, gameState.coins[i], '不可输入负数！', '你没有这么多点数！'));
+		}
 		let inputs = getInputs(
 			'请出示点数',
 			'已提交点数',
 			timeLimit,
-			0,
+			'0',
 			[0, 1],
 			[`slider:0:${gameState.coins[0]}`, `slider:0:${gameState.coins[1]}`],
-			[checker_0, checker_1]
+			checkers
 		)
 		alertAll('第 ' + gameState.turn + ' 轮结束\n双方出示点数：' + inputs[0] + ' vs ' + inputs[1])
 		gameState.history.push(inputs)
-		let x = Number(inputs[0])
-		let y = Number(inputs[1])
+		let x = parseInt(inputs[0])
+		let y = parseInt(inputs[1])
 		gameState.coins[0] -= x
 		gameState.coins[1] -= y
 		if (x == y) {
@@ -124,7 +122,7 @@ function outputStatus(player) {
 
 function main() {
 	initAll()
-	let inputs = getInputs('游戏即将开始，请输入【准备】', '已准备', 900, '', [0, 1], ['input:[准备]', 'input:[准备]'], [blankChecker, blankChecker])
+	let inputs = getInputs('游戏即将开始，请输入【准备】', '已准备', 900, '', [0, 1], 'input', mustEqualChecker('准备'))
 	if (inputs[0] != '准备' || inputs[1] != '准备') {
 		appendStatusAll('等待玩家准备超时。')
 		return 1
@@ -135,6 +133,9 @@ function main() {
 			updateStatus(i, outputStatus(gameState.players[i]))
 		}
 		stepTurn()
+		for(let i = 0; i < gameState.players.length; i++) {
+			updateStatus(i, outputStatus(gameState.players[i]))
+		}
 	}
 
 	let result = finalResult()

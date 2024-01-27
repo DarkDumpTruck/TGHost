@@ -47,9 +47,9 @@ async function submit() {
     return
   }
   let msg = ""
-  if (playerStatus.value.inputType.startsWith("slider:")) {
+  if (playerStatus.value.inputType.startsWith("slider")) {
     msg = String(sliderValue.value)
-  } else if (playerStatus.value.inputType.startsWith("input:")){
+  } else if (playerStatus.value.inputType.startsWith("input")) {
     msg = inputValue.value
   }
   let resp = await postPlayerInput(
@@ -60,10 +60,6 @@ async function submit() {
       msg,
     })
   if (resp.status === "ok") {
-    ElMessage({
-      message: "提交成功",
-      type: "success",
-    })
     inputValue.value = ""
   }
   refetch()
@@ -79,15 +75,13 @@ function startWS() {
   }
   conn.onmessage = (event) => {
     const data = JSON.parse(event.data)
-    console.log(data)
     if (data === "update") {
       refetch()
     }
     if (data.startsWith("alert:")) {
-      ElMessage({
-        message: data.slice(6),
-        type: "warning",
-      })
+      let type = data.split(":")[1]
+      let message = data.split(":")[2]
+      ElMessage({ type, message })
     }
   }
 
@@ -102,7 +96,7 @@ onMounted(() => {
   refetch()
   setInterval(() => {
     if (inputDDL.value > 0)
-    inputDDL.value --
+      inputDDL.value--
   }, 1000)
   startWS()
 })
@@ -137,18 +131,21 @@ onUnmounted(() => {
     </div>
     <div class="space-y-2">
       <p class="text-lg">
-        <span v-if="playerStatus?.inputMsg">
-          {{ playerStatus?.inputMsg }} ，
-        </span>
-        <span v-if="playerStatus?.inputDone === false">
-          剩余 {{ inputDDL }} 秒
+        <span v-if="playerStatus?.gameRunning === false">
+          游戏已结束。
         </span>
         <span v-else>
-          正在等待其他玩家。
+          {{ playerStatus?.inputMsg }}
+          <span v-if="playerStatus?.inputDone === false">
+            ，剩余 {{ inputDDL }} 秒
+          </span>
+          <span v-else>
+            ，正在等待其他玩家。
+          </span>
         </span>
       </p>
       <div v-show="playerStatus?.inputType?.startsWith('input')">
-        <el-input v-model="inputValue" />
+        <el-input v-model="inputValue" :disabled="playerStatus?.inputDone" @keyup.enter="submit" />
       </div>
       <div v-show="playerStatus?.inputType?.startsWith('slider')" class="mx-4">
         <el-slider v-model="sliderValue" :min="sliderMin" :max="sliderMax" :step="sliderStep"

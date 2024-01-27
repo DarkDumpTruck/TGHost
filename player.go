@@ -1,9 +1,11 @@
 package tghost
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"sync"
+	"tghost/pkg/logger"
 	"time"
 
 	"github.com/google/uuid"
@@ -13,6 +15,8 @@ type Player struct {
 	Index int    `json:"index"`
 	Id    int    `json:"id"`
 	Name  string `json:"name"`
+
+	IsBot bool `json:"isBot"`
 
 	statusMutex *sync.Mutex
 	status      string
@@ -38,22 +42,31 @@ func NewPlayer(name string, index int) *Player {
 		statusMutex: &sync.Mutex{},
 		inputMutex:  &sync.Mutex{},
 	}
-	fmt.Print(p)
 	return &p
 }
 
-func (p *Player) GetInput(msg string, timeout int, defaultValue string, inputType string) (string, error) {
+func (p *Player) AlertMessage(msg string, level string) {
+	p.wsMsgChans.Range(func(key, value interface{}) bool {
+		channel := key.(chan string)
+		channel <- "alert:" + level + ":" + msg
+		return true
+	})
+}
+
+func (p *Player) GetInput(ctx context.Context, msg string, defaultValue string, inputType string) (string, error) {
+	if p.IsBot {
+		return defaultValue, nil
+	}
 	if p.inputChan != nil {
 		return "", fmt.Errorf("already waiting for input")
 	}
-	fmt.Println("Waiting for input from", p.Name)
+	logger.Info("Waiting for input", logger.String("player", p.Name))
 	p.inputMutex.Lock()
 	p.inputMsg = msg
 	p.inputId = uuid.New().String()
 	p.inputChan = make(chan string)
 	p.inputDone = false
 	p.inputTimeout = false
-	p.inputDDL = time.Now().Add(time.Duration(timeout) * time.Second)
 	p.inputType = inputType
 	p.inputMutex.Unlock()
 	defer func() {
@@ -62,10 +75,13 @@ func (p *Player) GetInput(msg string, timeout int, defaultValue string, inputTyp
 		p.inputMutex.Unlock()
 	}()
 	select {
-	case <-time.After(time.Duration(timeout) * time.Second):
+	case <-ctx.Done():
+		logger.Info("Input timeout, using default value.", logger.String("defaultValue", defaultValue), logger.String("player", p.Name))
+		p.AlertMessage("超时，默认提交"+defaultValue, "warning")
 		p.inputTimeout = true
 		return defaultValue, nil
 	case value := <-p.inputChan:
+		logger.Info("Input received.", logger.String("value", value), logger.String("player", p.Name))
 		p.inputDone = true
 		return value, nil
 	}

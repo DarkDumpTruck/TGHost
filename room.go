@@ -27,7 +27,7 @@ var (
 	roomsMutex = sync.RWMutex{}
 )
 
-func NewRoom(script *Script, hidden bool) *Room {
+func NewRoom(script *Script, hidden bool, botCount int) *Room {
 	g := NewGame()
 	g.SetCode(script.Code)
 	roomsMutex.Lock()
@@ -35,7 +35,7 @@ func NewRoom(script *Script, hidden bool) *Room {
 		Id:       len(rooms),
 		Name:     fmt.Sprintf("房间#%d", len(rooms)),
 		GameName: script.Name,
-		Hidden:   false,
+		Hidden:   hidden,
 		script:   script,
 		game:     g,
 	}
@@ -45,6 +45,9 @@ func NewRoom(script *Script, hidden bool) *Room {
 	// TODO: maybe implement player manager here (support join/leave)
 	for i := 0; i < r.script.PlayerNum; i++ {
 		r.Players = append(r.Players, NewPlayer(fmt.Sprintf("Player#%d", i), i))
+	}
+	for i := 0; i < botCount; i++ {
+		r.Players[i].IsBot = true
 	}
 	r.game.Players = r.Players
 
@@ -60,12 +63,12 @@ func GetRoom(id int) (*Room, error) {
 	return rooms[id], nil
 }
 
-func ListRooms() []*Room {
+func ListRooms(showHidden bool) []*Room {
 	roomsMutex.RLock()
 	defer roomsMutex.RUnlock()
 	var result []*Room
 	for _, room := range rooms {
-		if !room.Hidden {
+		if !showHidden && !room.Hidden {
 			result = append(result, room)
 		}
 	}
@@ -93,24 +96,26 @@ func (r *Room) GetPlayer(id int) (*Player, error) {
 }
 
 type PlayerStatus struct {
-	GameName   string    `json:"gameName"`
-	GameStatus string    `json:"gameStatus"`
-	InputDone  bool      `json:"inputDone"`
-	InputDDL   time.Time `json:"inputDDL"`
-	InputId    string    `json:"inputId"`
-	InputMsg   string    `json:"inputMsg"`
-	InputType  string    `json:"inputType"`
+	GameName    string    `json:"gameName"`
+	GameStatus  string    `json:"gameStatus"`
+	GameRunning bool      `json:"gameRunning"`
+	InputDone   bool      `json:"inputDone"`
+	InputDDL    time.Time `json:"inputDDL"`
+	InputId     string    `json:"inputId"`
+	InputMsg    string    `json:"inputMsg"`
+	InputType   string    `json:"inputType"`
 }
 
 func (r *Room) GetPlayerStatus(player *Player) PlayerStatus {
 	return PlayerStatus{
-		GameName:   r.script.Name,
-		GameStatus: player.status,
-		InputDone:  !r.game.Running || player.inputDone || player.inputTimeout,
-		InputDDL:   player.inputDDL,
-		InputId:    player.inputId,
-		InputMsg:   player.inputMsg,
-		InputType:  player.inputType,
+		GameName:    r.script.Name,
+		GameStatus:  player.status,
+		GameRunning: r.game.Running,
+		InputDone:   !r.game.Running || player.inputDone || player.inputTimeout,
+		InputDDL:    player.inputDDL,
+		InputId:     player.inputId,
+		InputMsg:    player.inputMsg,
+		InputType:   player.inputType,
 	}
 }
 
@@ -121,11 +126,11 @@ func (r *Room) Echo(player *Player, c *websocket.Conn) {
 	go func() {
 		for {
 			_, message, err := c.ReadMessage()
+			_ = message
 			if err != nil {
 				player.wsMsgChans.Delete(channel)
 				break
 			}
-			fmt.Println("websocket: Received message: ", string(message))
 		}
 	}()
 	for {
@@ -134,10 +139,9 @@ func (r *Room) Echo(player *Player, c *websocket.Conn) {
 			c.Close()
 			break
 		}
-		fmt.Printf("websocket: Send message: %v\n", msg)
 		err := c.WriteJSON(msg)
 		if err != nil {
-			fmt.Printf("ws WriteJSON msg failed: %v\n", err)
+			logger.Error("ws WriteJSON msg failed", logger.Err(err))
 			break
 		}
 	}

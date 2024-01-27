@@ -1,9 +1,10 @@
 package tghost
 
 import (
-	"fmt"
+	"context"
 	"sync"
 	"tghost/pkg/logger"
+	"time"
 
 	"github.com/dop251/goja"
 )
@@ -14,19 +15,21 @@ type Game struct {
 
 	vm   *goja.Runtime
 	code string
+	ctx  context.Context
 }
 
 func NewGame() *Game {
 	g := Game{
 		vm:   goja.New(),
 		code: "",
+		ctx:  context.Background(),
 	}
 
 	return &g
 }
 
 func (g *Game) SetCode(code string) {
-	g.code = code
+	g.code = baseCode + code
 }
 
 func (g *Game) Run() error {
@@ -37,32 +40,84 @@ func (g *Game) Run() error {
 		for _, player := range g.Players {
 			player := player
 			go func() {
-				player.wsMsgChans.Range(func(key, value interface{}) bool {
-					channel := key.(chan string)
-					channel <- "alert:" + msg
-					return true
-				})
+				player.AlertMessage(msg, "info")
 			}()
 		}
 	})
-	g.vm.Set("getInputs", func(msg string, succMsg string, timeout int, defaultValue string, indexes []int, inputTypes []string, checkers []func(string)bool) []string {
+	g.vm.Set("getInputs", func(msg string, succMsg string, timeout int, _defaultValue goja.Value, indexes []int, _inputType goja.Value, _checkers goja.Value) []string {
 		count := len(indexes)
+		if len(g.Players) < count {
+			logger.Error("getInputs: too many indexes", logger.Int("count", count), logger.Int("playerNum", len(g.Players)))
+			return []string{}
+		}
+		result := make([]string, count)
+		var defaultValues []string
+		if err := g.vm.ExportTo(_defaultValue, &defaultValues); err != nil {
+			var defaultValue string
+			if err := g.vm.ExportTo(_defaultValue, &defaultValue); err != nil {
+				logger.Error("got error type for defaultValue", logger.Err(err))
+				return result
+			}
+			defaultValues = make([]string, count)
+			for i := 0; i < count; i++ {
+				defaultValues[i] = defaultValue
+			}
+		}
+		var inputTypes []string
+		if err := g.vm.ExportTo(_inputType, &inputTypes); err != nil {
+			var inputType string
+			if err := g.vm.ExportTo(_inputType, &inputType); err != nil {
+				logger.Error("got error type for inputTypes", logger.Err(err))
+				return result
+			}
+			inputTypes = make([]string, count)
+			for i := 0; i < count; i++ {
+				inputTypes[i] = inputType
+			}
+		}
+		var checkers []func(string) string
+		if err := g.vm.ExportTo(_checkers, &checkers); err != nil {
+			var checker func(string) string
+			if err := g.vm.ExportTo(_checkers, &checker); err != nil {
+				logger.Error("got error type for checkers", logger.Err(err))
+				return result
+			}
+			checkers = make([]func(string) string, count)
+			for i := 0; i < count; i++ {
+				checkers[i] = checker
+			}
+		}
 		wg := sync.WaitGroup{}
 		wg.Add(count)
-		result := make([]string, len(g.Players))
-		for _, index := range indexes {
+		for i, index := range indexes {
+			i := i
 			index := index
 			go func() {
 				defer wg.Done()
 				player := g.Players[index]
-				value, err := player.GetInput(msg, timeout, defaultValue, inputTypes[index])
-				if err != nil {
-					logger.Info("player.GetInput error:", logger.Err(err))
-					return
+				player.inputMutex.Lock()
+				player.inputDDL = time.Now().Add(time.Duration(timeout) * time.Second)
+				player.inputMutex.Unlock()
+				ctx, cancel := context.WithTimeout(g.ctx, time.Duration(timeout)*time.Second)
+				defer cancel()
+				for {
+					value, err := player.GetInput(ctx, msg, defaultValues[i], inputTypes[i])
+					if err != nil {
+						logger.Info("player.GetInput error:", logger.Err(err))
+						return
+					}
+					if value == defaultValues[i] {
+						result[i] = defaultValues[i]
+						break
+					}
+					checkResult := checkers[i](value)
+					if checkResult == "" {
+						result[i] = value
+						player.AlertMessage("提交成功", "success")
+						break
+					}
+					player.AlertMessage(checkResult, "warning")
 				}
-				checkResult := checkers[index](value)
-				fmt.Println("checkResult:", checkResult) // TODO: use check result to retry
-				result[index] = value
 				player.inputMsg = succMsg
 			}()
 		}
@@ -97,6 +152,9 @@ func (g *Game) Run() error {
 			}()
 		}
 	})
+	g.vm.Set("log", func(msg_type string, msg string) {
+		logger.Info("game log: "+msg_type, logger.String("message", msg))
+	})
 
 	g.Running = true
 	defer func() {
@@ -106,7 +164,7 @@ func (g *Game) Run() error {
 	if err != nil {
 		return err
 	}
-	
+
 	var main func() int
 	err = g.vm.ExportTo(g.vm.Get("main"), &main)
 	if err != nil {
