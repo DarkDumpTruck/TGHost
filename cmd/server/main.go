@@ -75,12 +75,11 @@ func setupHTTPRoutes() (*gin.Engine, error) {
 		}
 
 		script := &tghost.Script{
-			Name:      req.Name,
-			Code:      req.Code,
-			PlayerNum: req.PlayerNum + req.BotNum + req.JudgeNum,
+			Name: req.Name,
+			Code: req.Code,
 		}
 
-		r := tghost.NewRoom(script, req.Hidden, req.BotNum)
+		r := tghost.NewRoom(script, req.Hidden, req.PlayerNum, req.BotNum, req.JudgeNum)
 		go func() {
 			defer func() {
 				if err := recover(); err != nil {

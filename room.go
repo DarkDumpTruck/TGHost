@@ -27,7 +27,7 @@ var (
 	roomsMutex = sync.RWMutex{}
 )
 
-func NewRoom(script *Script, hidden bool, botCount int) *Room {
+func NewRoom(script *Script, hidden bool, playerCount, botCount, judgeCount int) *Room {
 	g := NewGame()
 	g.SetCode(script.Code)
 	roomsMutex.Lock()
@@ -43,11 +43,18 @@ func NewRoom(script *Script, hidden bool, botCount int) *Room {
 	roomsMutex.Unlock()
 
 	// TODO: maybe implement player manager here (support join/leave)
-	for i := 0; i < r.script.PlayerNum; i++ {
-		r.Players = append(r.Players, NewPlayer(fmt.Sprintf("Player#%d", i), i))
+	for i := 0; i < playerCount; i++ {
+		player := NewPlayer(fmt.Sprintf("Player#%d", i+1), i)
+		r.Players = append(r.Players, player)
 	}
 	for i := 0; i < botCount; i++ {
-		r.Players[i].IsBot = true
+		player := NewPlayer(fmt.Sprintf("Bot#%d", i+1), i)
+		player.IsBot = true
+		r.Players = append(r.Players, player)
+	}
+	for i := 0; i < judgeCount; i++ {
+		player := NewPlayer("裁判", i)
+		r.Players = append(r.Players, player)
 	}
 	r.game.Players = r.Players
 
