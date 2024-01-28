@@ -1,6 +1,5 @@
 //!name=动物园捐赠
 //!player=10
-//!judge=1
 "use strict";
 
 const timeLimitPrepare = 1999 /* seconds */
@@ -11,7 +10,6 @@ const timeLimitCall = 60 /* seconds */
 const totalTurn = 10
 const totalPlayer = 10
 const allPlayerIds = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-const judgeId = 10
 const initCoin = 100
 
 let gameState = {
@@ -21,10 +19,14 @@ let gameState = {
 	coins: [],
 	goods: [],
 	stage: 0,
+	showhand: false,
+	winner: -1,
+	endStage: false,
 	showCards: [],
 	backCards: [],
 	currentBets: [],
 	fold: [],
+	history: [],
 }
 
 let allCards = []
@@ -39,6 +41,7 @@ function initAll() {
 	for(let i = 0; i < totalPlayer; i++) {
 		gameState.coins.push(initCoin)
 		gameState.goods.push(0)
+		gameState.history.push("")
 	}
 }
 
@@ -78,20 +81,31 @@ let specialPlayerIds = shuffle(allPlayerIds.slice())
 
 function outputStatus(index) {
 	let output = ''
+	if(gameState.endStage) {
+		output = '第' + gameState.turn + '轮结束。\n'
+		output += '场上展示的牌是：' + gameState.showCards.join(' ') + '\n'
+		if(gameState.showhand) {
+			output += '未展示的五张牌是：' + gameState.backCards.join(' ') + '\n\n'
+			output += '玩家开牌情况：\n'
+			for(let i = 0; i < totalPlayer; i++) {
+				if(!gameState.fold[i]) {
+					output += `${gameState.players[i].Name}：${gameState.cards[i].join(' ')}\n`
+				}
+			}
+		} else {
+			output += `因其他玩家弃牌，${gameState.players[gameState.winner].Name}获得本轮胜利。`
+		}
+		output += '\n各玩家剩余点数情况：\n'
+		for(let i = 0; i < totalPlayer; i++) {
+			output += `${gameState.players[i].Name}：${gameState.coins[i]}水晶，${gameState.goods[i]}好人卡；\n`
+		}
+		gameState.history[index] += output + '\n'
+		return gameState.history[index]
+	}
+	
 	if(gameState.stage == 0) {
 		output = '当前第' + gameState.turn + '轮的开始阶段，你目前有' + gameState.coins[index] + '水晶，' + gameState.goods[index] + '好人卡。\n'
 		output += '你目前的手牌是：' + gameState.cards[index].join(' ') + '\n'
-	}
-	else if(gameState.stage == 7) {
-		output = '当前第' + gameState.turn + '轮的结束阶段，你目前有' + gameState.coins[index] + '水晶，' + gameState.goods[index] + '好人卡。\n'
-		output += '场上展示的牌是：' + gameState.showCards.join(' ') + '\n'
-		output += '未展示的五张牌是：' + gameState.backCards.join(' ') + '\n\n'
-		output += '玩家开牌情况：\n'
-		for(let i = 0; i < totalPlayer; i++) {
-			if(!gameState.fold[i]) {
-				output += `${gameState.players[i].Name}：${gameState.cards[i].join(' ')}\n`
-			}
-		}
 	}
 	else if(gameState.stage % 2 == 1) {
 		output = `当前第 ${gameState.turn} 轮的第 ${(gameState.stage + 1) / 2} 阶段，你目前有` + gameState.coins[index] + '水晶，' + gameState.goods[index] + '好人卡。\n'
@@ -117,101 +131,14 @@ function outputStatus(index) {
 			}
 		}
 	}
-	return output
-}
 
-function outputStatusForJudge() {
-	let output = ''
-	if(gameState.stage == 0) {
-		output = '当前第' + gameState.turn + '轮的开始阶段。\n'
-		output += '各玩家情况：\n'
-		for(let i = 0; i < totalPlayer; i++) {
-			output += `${gameState.players[i].Name}：${gameState.fold[i]?'已弃牌':'未弃牌'}：${gameState.cards[i].join(' ')}，剩余水晶 ${gameState.coins[i]}\n`
-		}
-	}
-	else if(gameState.stage == 7) {
-		output = '当前第' + gameState.turn + '轮的结束阶段。\n'
-		output += '场上展示的牌是：' + gameState.showCards.join(' ') + '\n'
-		output += '未展示的五张牌是：' + gameState.backCards.join(' ') + '\n\n'
-		output += '玩家开牌情况：\n'
-		for(let i = 0; i < totalPlayer; i++) {
-			output += `${gameState.players[i].Name}：${gameState.fold[i]?'已弃牌':'未弃牌'}：${gameState.cards[i].join(' ')}，剩余水晶 ${gameState.coins[i]}，好人卡 ${gameState.goods[i]}\n`
-		}
-	}
-	else if(gameState.stage % 2 == 1) {
-		output = `当前第 ${gameState.turn} 轮的第 ${(gameState.stage + 1) / 2} 阶段。\n`
-		output += '场上展示的牌是：' + gameState.showCards.join(' ') + '\n\n'
-		output += '各玩家情况：\n'
-		for(let i = 0; i < totalPlayer; i++) {
-			output += `${gameState.players[i].Name}：${gameState.fold[i]?'已弃牌':'未弃牌'}：${gameState.cards[i].join(' ')}，剩余水晶 ${gameState.coins[i]}\n`
-		}
-		output += '底牌：' + gameState.backCards.join(' ') + '\n'
-	}
-	else if(gameState.stage % 2 == 0) {
-		output = `当前第 ${gameState.turn} 轮的第 ${gameState.stage / 2} 阶段。\n`
-		output += '场上展示的牌是：' + gameState.showCards.join(' ') + '\n\n'
-		output += '各玩家情况：\n'
-		for(let i = 0; i < totalPlayer; i++) {
-			output += `${gameState.players[i].Name}：募捐 ${gameState.currentBets[i]}，${gameState.fold[i]?'已弃牌':'未弃牌'}：${gameState.cards[i].join(' ')}，剩余水晶 ${gameState.coins[i]}\n`
-		}
-		output += '底牌：' + gameState.backCards.join(' ') + '\n'
-	}
-	return output
+	return gameState.history[index] + output
 }
 
 function updateAll() {
 	for(let i = 0; i < totalPlayer; i++) {
 		updateStatus(i, outputStatus(i))
 	}
-	updateStatus(judgeId, outputStatusForJudge())
-}
-
-function manualJudge() {
-	appendStatusAll('正在等待裁判操作...')
-	while(true){
-		let inputs = getInputs(
-			'请裁判修改当前游戏状态',
-			'修改成功',
-			9999,
-			'',
-			[judgeId],
-			'input',
-			blankChecker
-		)
-		if(inputs[0] == '') {
-			break
-		}
-		try {
-			let cmd = inputs[0].split(' ')
-			if(cmd[0] == 'name') {
-				gameState.players[cmd[1]].Name = cmd[2]
-			}
-			if(cmd[0] == 'coin') {
-				gameState.coins[cmd[1]] += parseInt(cmd[2])
-			}
-			if(cmd[0] == 'goods') {
-				gameState.goods[cmd[1]] += parseInt(cmd[2])
-			}
-			if(cmd[0] == 'fold') {
-				gameState.fold[cmd[1]] = true
-			}
-			if(cmd[0] == 'unfold') {
-				gameState.fold[cmd[1]] = false
-			}
-			if(cmd[0] == 'card') {
-				gameState.cards[cmd[1]][cmd[2]] = cmd[3]
-			}
-			if(cmd[0] == 'eval') {
-				eval(cmd[1])
-			}
-		} catch (e) {
-			log(e)
-			continue
-		}
-		updateAll()
-		appendStatusAll('正在等待裁判操作...')
-	}
-	updateAll()
 }
 
 function main() {
@@ -230,6 +157,8 @@ function main() {
 		let cards = getShuffledCard()
 		let index = 0
 		gameState.stage = 0
+		gameState.showhand = false
+		gameState.endStage = false
 		gameState.cards = []
 		gameState.fold = []
 		for(let i = 0; i < totalPlayer; i++) {
@@ -364,21 +293,38 @@ function main() {
 					gameState.fold[index] = true
 				}
 			}
-			let unfoldedCount = 0;
+			let canBetCount = 0
 			for(let i = 0; i < totalPlayer; i++) {
 				if(gameState.fold[i] || gameState.coins[i] == 0) {
 					continue
 				}
-				unfoldedCount++
+				canBetCount++
 			}
-			if(unfoldedCount <= 1) {
+			if(canBetCount <= 1) {
 				break
 			}
 		}
 
-		gameState.stage++
+		let unfoldedCount = 0
+		gameState.winner = -1
+		for(let i = 0; i < totalPlayer; i++) {
+			if(gameState.fold[i]) {
+				continue
+			}
+			unfoldedCount++
+			gameState.winner = i
+		}
+		if(unfoldedCount == 1) {
+			let totalBet = 0
+			for(let i = 0; i < totalPlayer; i++) {
+				totalBet += gameState.currentBets[i]
+			}
+			gameState.coins[gameState.winner] += totalBet
+		} else {
+			gameState.showhand = true
+		}
+		gameState.endStage = true
 		updateAll()
-		manualJudge()
 	}
 
 	let result = finalResult()
