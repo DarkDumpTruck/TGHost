@@ -34,4 +34,16 @@ function numberInRangeChecker(min, max, minErrMsg, maxErrMsg) {
 		return "";
 	}
 }
+
+function itemInListChecker(list, errMsg) {
+	return (input) => {
+		if(!list.includes(input)) {
+			if(!errMsg) {
+				return "请输入" + list.join("、") + "中的一个！";
+			}
+			return errMsg;
+		}
+		return "";
+	}
+}
 `

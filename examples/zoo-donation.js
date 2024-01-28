@@ -4,9 +4,10 @@
 "use strict";
 
 const timeLimitPrepare = 1999 /* seconds */
-const timeLimitChooseCard = 200 /* seconds */
-const timeLimitBet = 180 /* seconds */
-const timeLimitCall = 180 /* seconds */
+const timeLimitReplaceCard = 60 /* seconds */
+const timeLimitChooseCard = 180 /* seconds */
+const timeLimitBet = 60 /* seconds */
+const timeLimitCall = 60 /* seconds */
 const totalTurn = 10
 const totalPlayer = 10
 const allPlayerIds = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
@@ -27,7 +28,7 @@ let gameState = {
 }
 
 let allCards = []
-for(let i of ['鲜花', '蜜桃', '钻石', '千纸鹤']) {
+for(let i of ['鲜花', '蜜桃', '钻石', '黑桃']) {
 	for(let j of ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A']) {
 		allCards.push(i+j)
 	}
@@ -215,7 +216,7 @@ function manualJudge() {
 
 function main() {
 	initAll()
-	let inputs = getInputs(
+	getInputs(
         '游戏即将开始，请输入【准备】',
         '已准备',
         timeLimitPrepare,
@@ -234,6 +235,8 @@ function main() {
 		for(let i = 0; i < totalPlayer; i++) {
 			gameState.fold.push(gameState.coins[i] == 0)
 		}
+		
+		let specialPlayerId = specialPlayerIds[gameState.turn - 1]
 		for(let i = 0; i < totalPlayer; i++) {
 			if(gameState.fold[i]) {
 				gameState.cards.push([])
@@ -243,13 +246,24 @@ function main() {
 			for(let j = 0; j < 3; j++) {
 				player_cards.push(cards[index++])
 			}
-			if(i == specialPlayerIds[gameState.turn - 1]) {
+			if(i == specialPlayerId) {
 				player_cards[2] = '【特殊牌】'
 			}
 			gameState.cards.push(player_cards)
 		}
 		updateAll()
-		manualJudge()
+		let input = getInputs(
+			'请将【特殊牌】替换为任意一张牌，超时默认替换为'+gameState.cards[specialPlayerId][0],
+			'替换成功',
+			timeLimitChooseCard,
+			gameState.cards[specialPlayerId][0],
+			[specialPlayerId],
+			'input',
+			itemInListChecker(allCards)
+		)
+		gameState.cards[specialPlayerId][2] = input[0]
+		updateStatus(specialPlayerId, outputStatus(specialPlayerId))
+
 		let survivePlayerIds = []
 		for(let i = 0; i < totalPlayer; i++) {
 			if(!gameState.fold[i]) {
