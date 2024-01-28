@@ -22,7 +22,7 @@ const websocketConn = ref<WebSocket>()
 async function refetch() {
   const data = await getPlayerStatus({ roomId: roomID.value, playerId: playerID.value })
   playerStatus.value = data
-  inputDDL.value = Math.floor((new Date(data.inputDDL).getTime() - Date.now() + 1) / 1000)
+  inputDDL.value = data.inputDDL
   if (data.inputType.startsWith("slider:")) {
     let range = data.inputType.split(":").map(Number)
     if (range.length > 2) {

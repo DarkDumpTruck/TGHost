@@ -96,14 +96,14 @@ func (r *Room) GetPlayer(id int) (*Player, error) {
 }
 
 type PlayerStatus struct {
-	GameName    string    `json:"gameName"`
-	GameStatus  string    `json:"gameStatus"`
-	GameRunning bool      `json:"gameRunning"`
-	InputDone   bool      `json:"inputDone"`
-	InputDDL    time.Time `json:"inputDDL"`
-	InputId     string    `json:"inputId"`
-	InputMsg    string    `json:"inputMsg"`
-	InputType   string    `json:"inputType"`
+	GameName    string `json:"gameName"`
+	GameStatus  string `json:"gameStatus"`
+	GameRunning bool   `json:"gameRunning"`
+	InputDone   bool   `json:"inputDone"`
+	InputDDL    int    `json:"inputDDL"`
+	InputId     string `json:"inputId"`
+	InputMsg    string `json:"inputMsg"`
+	InputType   string `json:"inputType"`
 }
 
 func (r *Room) GetPlayerStatus(player *Player) PlayerStatus {
@@ -112,7 +112,7 @@ func (r *Room) GetPlayerStatus(player *Player) PlayerStatus {
 		GameStatus:  player.status,
 		GameRunning: r.game.Running,
 		InputDone:   !r.game.Running || player.inputDone || player.inputTimeout,
-		InputDDL:    player.inputDDL,
+		InputDDL:    int(time.Until(player.inputDDL).Seconds()),
 		InputId:     player.inputId,
 		InputMsg:    player.inputMsg,
 		InputType:   player.inputType,
