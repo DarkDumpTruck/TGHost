@@ -105,7 +105,7 @@ function outputStatus(index) {
 	
 	if(gameState.stage == 0) {
 		output = '当前第' + gameState.turn + '轮的开始阶段，你目前有' + gameState.coins[index] + '水晶，' + gameState.goods[index] + '好人卡。\n'
-		output += '你目前的手牌是：' + gameState.cards[index].join(' ') + '\n'
+		output += '你目前的手牌是：' + gameState.cards[index].join(' ') + '\n\n'
 	}
 	else if(gameState.stage % 2 == 1) {
 		output = `当前第 ${gameState.turn} 轮的第 ${(gameState.stage + 1) / 2} 阶段，你目前有` + gameState.coins[index] + '水晶，' + gameState.goods[index] + '好人卡。\n'

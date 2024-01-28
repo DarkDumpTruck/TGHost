@@ -15,6 +15,8 @@ const sliderMin = ref<number>(0)
 const sliderMax = ref<number>(0)
 const sliderStep = ref<number>(0)
 
+const playerStatusContainer = ref<HTMLDivElement>()
+
 const websocketStatus = ref<string>("连接中")
 const websocketProtocol = window.location.protocol === "https:" ? "wss" : "ws"
 const websocketConn = ref<WebSocket>()
@@ -23,6 +25,7 @@ async function refetch() {
   const data = await getPlayerStatus({ roomId: roomID.value, playerId: playerID.value })
   playerStatus.value = data
   inputDDL.value = data.inputDDL
+  playerStatusContainer.value?.scrollTo(0, playerStatusContainer.value.scrollHeight)
   if (data.inputType.startsWith("slider:")) {
     let range = data.inputType.split(":").map(Number)
     if (range.length > 2) {
@@ -125,8 +128,7 @@ onUnmounted(() => {
       </router-link>
     </div>
     <div class="min-h-64 rounded-lg border-solid border-2 border-neutral-600">
-      <div class="whitespace-pre-wrap text-lg m-2">
-        {{ playerStatus?.gameStatus }}
+      <div ref="playerStatusContainer" class="whitespace-pre-wrap text-lg m-2 max-h-[640px] overflow-y-scroll" v-text="playerStatus?.gameStatus">
       </div>
     </div>
     <div class="space-y-2">
