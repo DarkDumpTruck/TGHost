@@ -107,39 +107,36 @@ function dirty(hand) {
 	let card = hand[index]
 	if(hand[0][1] == hand[1][1] && hand[0][1] == hand[2][1] && hand[0][1] == hand[3][1] && hand[0][1] == hand[4][1]) {
 		// flush, use any card smaller or slightly bigger
-		let trial = card
 		while(true) {
-			index = dots.indexOf(trial[0])
-			if(index > 0) {
-				trial = dots[index - 1] + trial[1]
-			} else break;
-			if(!hset.has(trial)) {
-				hand[index] = trial
+			let jndex = dots.indexOf(hand[index][0])
+			if(jndex > 0) {
+				hand[index] = dots[jndex - 1] + hand[index][1]
+			} else {
+				while(true) {
+					hand[index] = dots[dots.indexOf(hand[index][0]) + 1] + card[1]
+					if(!hset.has(hand[index])) {
+						return hand
+					}
+				}
+			}
+			if(!hset.has(hand[index])) {
 				return hand
 			}
 		}
-		while(true) {
-			index = dots.indexOf(trial[0])
-			trial = dots[index + 1] + trial[1]
-			if(!hset.has(trial)) {
-				hand[index] = trial
-				return hand
-			}
-		}
 	}
-	hand[index] = hand[index][0] + 'C'
+	hand[index] = card[0] + 'C'
 	if(!hset.has(hand[index])) {
 		return hand
 	}
-	hand[index] = hand[index][0] + 'H'
+	hand[index] = card[0] + 'H'
 	if(!hset.has(hand[index])) {
 		return hand
 	}
-	hand[index] = hand[index][0] + 'D'
+	hand[index] = card[0] + 'D'
 	if(!hset.has(hand[index])) {
 		return hand
 	}
-	hand[index] = hand[index][0] + 'S'
+	hand[index] = card[0] + 'S'
 	return hand
 }
 
