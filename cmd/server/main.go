@@ -187,14 +187,15 @@ func main() {
 	flag.StringVar(&cfgPath, "c", "config/server.toml", "path to config file")
 	flag.Parse()
 
-	cfg, err := tghost.LoadConfigFromFile(cfgPath)
+	err := tghost.LoadConfigFromFile(cfgPath)
 	if err != nil {
-		panic(err)
+		logger.Info("[Warning] no config, using default config")
 	}
 
 	app, err := setupHTTPRoutes()
 	if err != nil {
 		panic(err)
 	}
-	app.Run(fmt.Sprintf(":%d", cfg.HTTPPort))
+
+	app.Run(fmt.Sprintf(":%d", tghost.GetConfig().HTTPPort))
 }

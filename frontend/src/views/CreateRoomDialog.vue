@@ -6,7 +6,7 @@ const emit = defineEmits(['update:modelValue', 'onConfirm'])
 
 const gameNames: Record<string,string> = {
   '偷袭': 'sneak-attack.js',
-  '动物园捐赠': 'zoo-donation.js',
+  '动物园捐赠': 'zoo-donation.min.js',
   '自定义游戏': 'custom.template',
 }
 

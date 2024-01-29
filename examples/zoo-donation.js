@@ -1,5 +1,6 @@
 //!name=动物园捐赠
 //!player=10
+//!include=poker-hand-evaluator.min.js
 "use strict";
 
 const timeLimitPrepare = 1999 /* seconds */
@@ -11,6 +12,8 @@ const totalTurn = 10
 const totalPlayer = 10
 const allPlayerIds = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 const initCoin = 100
+
+const dots = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A']
 
 let gameState = {
 	players: [],
@@ -30,11 +33,7 @@ let gameState = {
 }
 
 let allCards = []
-for(let i of ['鲜花', '蜜桃', '钻石', '黑桃']) {
-	for(let j of ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A']) {
-		allCards.push(i+j)
-	}
-}
+let allCardsMap = {}
 
 function initAll() {
 	gameState.players = getPlayers()
@@ -42,6 +41,18 @@ function initAll() {
 		gameState.coins.push(initCoin)
 		gameState.goods.push(0)
 		gameState.history.push("")
+	}
+	
+	for(let i of ['鲜花', '蜜桃', '钻石', '黑桃']) {
+		for(let j of dots) {
+			allCards.push(i+j)
+		}
+	}
+	let x = 0
+	for(let i of ['C', 'H', 'D', 'S']) {
+		for(let j of dots) {
+			allCardsMap[allCards[x++]] = j+i
+		}
 	}
 }
 
@@ -62,10 +73,10 @@ function shuffle(array) {
 	for(let i = 0; i < 5; i++) {
 		let currentIndex = array.length,  randomIndex
 		while (currentIndex > 0) {
-		randomIndex = Math.floor(Math.random() * currentIndex)
-		currentIndex--
-		[array[currentIndex], array[randomIndex]] = [
-			array[randomIndex], array[currentIndex]]
+			randomIndex = Math.floor(Math.random() * currentIndex)
+			currentIndex--
+			[array[currentIndex], array[randomIndex]] = [
+				array[randomIndex], array[currentIndex]]
 		}
 	}
 	return array
@@ -75,6 +86,85 @@ function getShuffledCard() {
 	let cards = allCards.slice()
 	shuffle(cards)
 	return cards
+}
+
+// do dirty work to prevent same card in a hand
+function dirty(hand) {
+	log(hand)
+	let hset = new Set(hand)
+	if(hset.size == 5) {
+		return hand
+	}
+	let index = 0
+	for(let i = 1; i < 4; i++) {
+		for(let j = i+1; j < 5; j++) {
+			if(hand[i] == hand[j]) {
+				index = i
+				break
+			}
+		}
+	}
+	let card = hand[index]
+	if(hand[0][1] == hand[1][1] && hand[0][1] == hand[2][1] && hand[0][1] == hand[3][1] && hand[0][1] == hand[4][1]) {
+		// flush, use any card smaller or slightly bigger
+		let trial = card
+		while(true) {
+			index = dots.indexOf(trial[0])
+			if(index > 0) {
+				trial = dots[index - 1] + trial[1]
+			} else break;
+			if(!hset.has(trial)) {
+				hand[index] = trial
+				return hand
+			}
+		}
+		while(true) {
+			index = dots.indexOf(trial[0])
+			trial = dots[index + 1] + trial[1]
+			if(!hset.has(trial)) {
+				hand[index] = trial
+				return hand
+			}
+		}
+	}
+	hand[index] = hand[index][0] + 'C'
+	if(!hset.has(hand[index])) {
+		return hand
+	}
+	hand[index] = hand[index][0] + 'H'
+	if(!hset.has(hand[index])) {
+		return hand
+	}
+	hand[index] = hand[index][0] + 'D'
+	if(!hset.has(hand[index])) {
+		return hand
+	}
+	hand[index] = hand[index][0] + 'S'
+	return hand
+}
+
+function bestRank(index) {
+	const hand = gameState.cards[index].map(x=>allCardsMap[x])
+	const showCards = gameState.showCards.map(x=>allCardsMap[x])
+	const backCards = gameState.backCards.map(x=>allCardsMap[x])
+	let min_rank = 1e9
+	for(let i = 0; i < 3; i++) {
+		for(let j = i+1; j < 4; j++) {
+			for(let k = j+1; k < 5; k++) {
+				let cards = dirty([hand[0], hand[1], showCards[i], showCards[j], showCards[k]])
+				let rank = new PokerHand(cards.join(' ')).getScore(cards)
+				if(rank < min_rank) {
+					min_rank = rank
+				}
+				cards = dirty([hand[0], hand[1], backCards[i], backCards[j], backCards[k]])
+				rank = new PokerHand(cards.join(' ')).getScore(cards)
+				if(rank < min_rank) {
+					min_rank = rank
+				}
+			}
+		}
+	}
+	return min_rank
 }
 
 let specialPlayerIds = shuffle(allPlayerIds.slice())
@@ -314,14 +404,27 @@ function main() {
 			unfoldedCount++
 			gameState.winner = i
 		}
+		let totalBet = 0
+		for(let i = 0; i < totalPlayer; i++) {
+			totalBet += gameState.currentBets[i]
+		}
 		if(unfoldedCount == 1) {
-			let totalBet = 0
-			for(let i = 0; i < totalPlayer; i++) {
-				totalBet += gameState.currentBets[i]
-			}
 			gameState.coins[gameState.winner] += totalBet
 		} else {
 			gameState.showhand = true
+			gameState.winner = -1
+			let min_rank = 1e9
+			for(let i = 0; i < totalPlayer; i++) {
+				if(gameState.fold[i]) {
+					continue
+				}
+				let rank = bestRank(i)
+				if(rank < min_rank) {
+					min_rank = rank
+					gameState.winner = i
+				}
+			}
+			gameState.coins[gameState.winner] += totalBet // TODO: handle split bet
 		}
 		gameState.endStage = true
 		updateAll()

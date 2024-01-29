@@ -2,6 +2,9 @@ package tghost
 
 import (
 	"context"
+	"os"
+	"path"
+	"strings"
 	"sync"
 	"tghost/pkg/logger"
 	"time"
@@ -29,7 +32,20 @@ func NewGame() *Game {
 }
 
 func (g *Game) SetCode(code string) {
-	g.code = baseCode + code
+	g.code = baseCode
+	for _, line := range strings.Split(code, "\n") {
+		if strings.Contains(line, "//!include=") {
+			includePath := path.Join(GetConfig().IncludeDir, strings.TrimSpace(strings.TrimPrefix(line, "//!include=")))
+			f, err := os.ReadFile(includePath)
+			if err != nil {
+				logger.Error("failed to include file", logger.String("path", includePath), logger.Err(err))
+				continue
+			}
+			g.code += string(f) + "\n"
+		} else {
+			g.code += line + "\n"
+		}
+	}
 }
 
 func (g *Game) Run() error {

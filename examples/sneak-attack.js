@@ -122,11 +122,7 @@ function outputStatus(player) {
 
 function main() {
 	initAll()
-	let inputs = getInputs('游戏即将开始，请输入【准备】', '已准备', 900, '', [0, 1], 'input', mustEqualChecker('准备'))
-	if (inputs[0] != '准备' || inputs[1] != '准备') {
-		appendStatusAll('等待玩家准备超时。')
-		return 1
-	}
+	getInputs('游戏即将开始，请输入【准备】', '已准备', 900, '准备', [0, 1], 'input', mustEqualChecker('准备'))
 	while (!checkGameEnd()) {
 		startTurn()
 		for(let i = 0; i < gameState.players.length; i++) {
