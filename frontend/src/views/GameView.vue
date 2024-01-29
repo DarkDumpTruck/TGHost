@@ -14,6 +14,7 @@ const sliderValue = ref<number>(0)
 const sliderMin = ref<number>(0)
 const sliderMax = ref<number>(0)
 const sliderStep = ref<number>(0)
+const radioValue = ref<string>("")
 
 const playerStatusContainer = ref<HTMLDivElement>()
 
@@ -54,6 +55,8 @@ async function submit() {
     msg = String(sliderValue.value)
   } else if (playerStatus.value.inputType.startsWith("input")) {
     msg = inputValue.value
+  } else if (playerStatus.value.inputType.startsWith("radio")) {
+    msg = radioValue.value
   }
   let resp = await postPlayerInput(
     {
@@ -153,9 +156,16 @@ onUnmounted(() => {
         <el-slider v-model="sliderValue" :min="sliderMin" :max="sliderMax" :step="sliderStep"
           :disabled="playerStatus?.inputDone" show-input />
       </div>
-      <el-button type="primary" @click="submit">
-        提交
-      </el-button>
+      <div v-show="playerStatus?.inputType?.startsWith('radio')" class="mx-4">
+        <el-radio-group v-model="radioValue" :disabled="playerStatus?.inputDone" size="large">
+          <el-radio-button v-for="(item,index) in playerStatus?.inputType?.substring(6)?.split(';')" :key="index" :label="index.toString()">{{ item }}</el-radio-button>
+        </el-radio-group>
+      </div>
+      <div class="mx-4">
+        <el-button type="primary" @click="submit">
+          提交
+        </el-button>
+      </div>
     </div>
   </div>
 </template>

@@ -281,9 +281,11 @@ function main() {
 		updateStatus(specialPlayerId, outputStatus(specialPlayerId))
 
 		let survivePlayerIds = []
+		let radioOptions = []
 		for(let i = 0; i < totalPlayer; i++) {
 			if(!gameState.fold[i]) {
 				survivePlayerIds.push(i)
+				radioOptions.push('radio:' + gameState.cards[i].join(';'))
 			}
 		}
 		let inputs = getInputs(
@@ -292,15 +294,15 @@ function main() {
 			timeLimitChooseCard,
 			'1',
 			survivePlayerIds,
-			'input', // TODO: use button
-			numberInRangeChecker(1, 3)
+			radioOptions,
+			numberInRangeChecker(0, 2)
 		)
 		let discardCards = []
 		for(let i = 0; i < totalPlayer; i++) {
 			if(gameState.fold[i]) {
 				continue
 			}
-			let cardIndex = parseInt(inputs[i]) - 1
+			let cardIndex = parseInt(inputs[i])
 			discardCards.push(gameState.cards[i][cardIndex])
 			gameState.cards[i].splice(cardIndex, 1)
 		}
