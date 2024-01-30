@@ -22,7 +22,7 @@ const hidden = ref(false)
 
 async function onGameChange (game: string) {
   name.value = game
-  code.value = await fetch(`/assets/${gameNames[game]}`).then(resp => resp.text())
+  code.value = await fetch(`/examples/${gameNames[game]}`).then(resp => resp.text())
   if(game == '自定义游戏') {
     showCode.value = true
   }

@@ -21,5 +21,5 @@ RUN apk add --no-cache libgcc
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 COPY --from=builder /server /
 COPY --from=frontend-builder /workdir/dist /frontend
-COPY ./examples /frontend/assets
+COPY ./examples /examples
 ENTRYPOINT ["/server"]

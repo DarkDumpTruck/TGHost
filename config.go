@@ -15,7 +15,7 @@ type Config struct {
 func DefaultConfig() *Config {
 	return &Config{
 		HTTPPort: 40123,
-		IncludeDir: "/frontend/assets/include",
+		IncludeDir: "./examples/include",
 	}
 }
 
@@ -29,18 +29,18 @@ func GetConfig() *Config {
 	return globalConfig
 }
 
-func LoadConfigFromFile(path string) (error) {
+func LoadConfigFromFile(path string) (bool, error) {
 	cfg := DefaultConfig()
 	if _, err := os.Stat(path); err != nil {
-		return err
+		return false, nil
 	}
 	buf, err := os.ReadFile(path)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if err := toml.Unmarshal(buf, cfg); err != nil {
-		return err
+		return false, err
 	}
 	globalConfig = cfg
-	return nil
+	return true, nil
 }

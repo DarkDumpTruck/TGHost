@@ -17,8 +17,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-var cfgPath string
-
 func setupHTTPRoutes() (*gin.Engine, error) {
 	app := gin.New()
 	app.Use(func(c *gin.Context) {
@@ -43,7 +41,8 @@ func setupHTTPRoutes() (*gin.Engine, error) {
 	app.Group("metrics").Use(func(c *gin.Context) {
 		promhttp.Handler().ServeHTTP(c.Writer, c.Request)
 	})
-	app.Use(static.Serve("/", static.LocalFile("/frontend", false)))
+	app.Use(static.Serve("/", static.LocalFile("frontend", false)))
+	app.Use(static.Serve("/examples", static.LocalFile("examples", false)))
 	app.NoRoute(func(c *gin.Context) {
 		accepted := c.NegotiateFormat(gin.MIMEJSON, gin.MIMEHTML)
 		if c.Request.Method == http.MethodGet && accepted == gin.MIMEHTML {
@@ -184,11 +183,15 @@ func setupHTTPRoutes() (*gin.Engine, error) {
 }
 
 func main() {
+	var cfgPath string
 	flag.StringVar(&cfgPath, "c", "config/server.toml", "path to config file")
 	flag.Parse()
 
-	err := tghost.LoadConfigFromFile(cfgPath)
+	ok, err := tghost.LoadConfigFromFile(cfgPath)
 	if err != nil {
+		panic(err)
+	}
+	if !ok {
 		logger.Info("[Warning] no config, using default config")
 	}
 

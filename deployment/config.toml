@@ -1,1 +1,2 @@
-http_port = 34567
+http_port = 40123
+include_dir = "./examples"
