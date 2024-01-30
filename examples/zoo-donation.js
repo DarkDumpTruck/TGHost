@@ -108,32 +108,20 @@ function dirty(hand) {
 	if(hand[0][1] == hand[1][1] && hand[0][1] == hand[2][1] && hand[0][1] == hand[3][1] && hand[0][1] == hand[4][1]) {
 		// flush, use any card smaller or slightly bigger
 		while(true) {
-			let jndex = dots.indexOf(hand[index][0])
-			if(jndex > 0) {
-				hand[index] = dots[jndex - 1] + hand[index][1]
-			} else {
-				while(true) {
-					hand[index] = dots[dots.indexOf(hand[index][0]) + 1] + card[1]
-					if(!hset.has(hand[index])) {
-						return hand
-					}
+			let jndex = dots.indexOf(card[0])
+			if(jndex == 0) {
+				while(!hset.has(card = dots[dots.indexOf(card[0]) + 1] + card[1])) {
+					hand[index] = card
+					return hand
 				}
 			}
-			if(!hset.has(hand[index])) {
+			if(!hset.has(card = dots[jndex - 1] + card[1])) {
+				hand[index] = card
 				return hand
 			}
 		}
 	}
-	hand[index] = card[0] + 'C'
-	if(!hset.has(hand[index])) {
-		return hand
-	}
-	hand[index] = card[0] + 'H'
-	if(!hset.has(hand[index])) {
-		return hand
-	}
-	hand[index] = card[0] + 'D'
-	if(!hset.has(hand[index])) {
+	if(!hset.has(hand[index] = card[0] + 'C') || !hset.has(hand[index] = card[0] + 'H') || !hset.has(hand[index] = card[0] + 'D')) {
 		return hand
 	}
 	hand[index] = card[0] + 'S'
@@ -164,6 +152,36 @@ function bestRank(index) {
 	return min_rank
 }
 
+function splitPot(bets, rank) {
+    let list = []
+    let n = bets.length
+    for(let i=0; i<n; i++) {
+        list.push({b: bets[i], r: rank[i], index: i})
+    }
+    list.sort((a,b)=>(b.b-a.b))
+    list.push({b: 0, r: 1e9})
+    let result = Array(n).fill(0);
+    for(let i=0; i<n; i++) {
+        if(list[i].b > list[i+1].b) {
+            let min_r = 1e9;
+            let min_list = [];
+            for(let j=0; j<=i; j++) {
+                if(min_r > list[j].r) {
+                    min_r = list[j].r
+                    min_list = [j]
+                } else if(min_r == list[j].r) {
+                    min_list.push(j)
+                }
+            }
+            let total = (i+1)*(list[i].b-list[i+1].b)
+            for(let j of min_list) {
+                result[list[j].index] += Math.floor(total/min_list.length)
+            }
+        }
+    }
+    return result
+}
+
 let specialPlayerIds = shuffle(allPlayerIds.slice())
 
 function outputStatus(index) {
@@ -192,11 +210,19 @@ function outputStatus(index) {
 	
 	if(gameState.stage == 0) {
 		output = '当前第' + gameState.turn + '轮的开始阶段，你目前有' + gameState.coins[index] + '水晶，' + gameState.goods[index] + '好人卡。\n'
-		output += '你目前的手牌是：' + gameState.cards[index].join(' ') + '\n\n'
+		if(gameState.fold[index]) {
+			output += '你已弃牌。\n\n'
+		} else {
+			output += '你目前的手牌是：' + gameState.cards[index].join(' ') + '\n\n'
+		}
 	}
 	else if(gameState.stage % 2 == 1) {
 		output = `当前第 ${gameState.turn} 轮的第 ${(gameState.stage + 1) / 2} 阶段，你目前有` + gameState.coins[index] + '水晶，' + gameState.goods[index] + '好人卡。\n'
-		output += '你目前的手牌是：' + gameState.cards[index].join(' ') + '\n'
+		if(gameState.fold[index]) {
+			output += '你已弃牌。\n\n'
+		} else {
+			output += '你目前的手牌是：' + gameState.cards[index].join(' ') + '\n'
+		}
 		output += '场上展示的牌是：' + gameState.showCards.join(' ') + '\n\n'
 		if(gameState.stage > 1) {
 			output += '当前募捐情况：\n'
@@ -209,7 +235,11 @@ function outputStatus(index) {
 	}
 	else if(gameState.stage % 2 == 0) {
 		output = `当前第 ${gameState.turn} 轮的第 ${gameState.stage / 2} 阶段，你目前有` + gameState.coins[index] + '水晶，' + gameState.goods[index] + '好人卡。\n'
-		output += '你目前的手牌是：' + gameState.cards[index].join(' ') + '\n'
+		if(gameState.fold[index]) {
+			output += '你已弃牌。\n\n'
+		} else {
+			output += '你目前的手牌是：' + gameState.cards[index].join(' ') + '\n'
+		}
 		output += '场上展示的牌是：' + gameState.showCards.join(' ') + '\n\n'
 		output += '当前募捐情况：\n'
 		for(let i = 0; i < totalPlayer; i++) {
@@ -242,6 +272,7 @@ function main() {
 	while (!checkGameEnd()) {
 		gameState.turn++
 		let cards = getShuffledCard()
+		let discardCards = []
 		let index = 0
 		gameState.stage = 0
 		gameState.showhand = false
@@ -256,6 +287,7 @@ function main() {
 		for(let i = 0; i < totalPlayer; i++) {
 			if(gameState.fold[i]) {
 				gameState.cards.push([])
+				discardCards.push(cards[index++])
 				continue
 			}
 			let player_cards = []
@@ -268,17 +300,19 @@ function main() {
 			gameState.cards.push(player_cards)
 		}
 		updateAll()
-		let input = getInputs(
-			'请将【特殊牌】替换为任意一张牌，超时默认替换为'+gameState.cards[specialPlayerId][0],
-			'替换成功',
-			timeLimitChooseCard,
-			gameState.cards[specialPlayerId][0],
-			[specialPlayerId],
-			'input',
-			itemInListChecker(allCards)
-		)
-		gameState.cards[specialPlayerId][2] = input[0]
-		updateStatus(specialPlayerId, outputStatus(specialPlayerId))
+		if(!gameState.fold[specialPlayerId]) {
+			let input = getInputs(
+				'请将【特殊牌】替换为任意一张牌，超时默认替换为'+gameState.cards[specialPlayerId][0],
+				'替换成功',
+				timeLimitChooseCard,
+				gameState.cards[specialPlayerId][0],
+				[specialPlayerId],
+				'input',
+				itemInListChecker(allCards)
+			)
+			gameState.cards[specialPlayerId][2] = input[0]
+			updateStatus(specialPlayerId, outputStatus(specialPlayerId))
+		}
 
 		let survivePlayerIds = []
 		let radioOptions = []
@@ -297,7 +331,6 @@ function main() {
 			radioOptions,
 			numberInRangeChecker(0, 2)
 		)
-		let discardCards = []
 		for(let i = 0; i < totalPlayer; i++) {
 			if(gameState.fold[i]) {
 				continue
@@ -367,14 +400,14 @@ function main() {
 				'请选择是否跟投，超时默认放弃',
 				'选择成功',
 				timeLimitCall,
-				'放弃',
+				'1',
 				needCallIds,
-				'input',
-				mustInChecker(['跟投', '放弃'])
+				'radio:跟投;放弃',
+				numberInRangeChecker(0, 1)
 			)
 			for(let i = 0; i < needCallIds.length; i++) {
 				let index = needCallIds[i]
-				if(inputs[i] == '跟投') {
+				if(inputs[i] == '0') {
 					let callNum = Math.min(gameState.coins[index], maxBet - gameState.currentBets[index])
 					gameState.coins[index] -= callNum
 					gameState.currentBets[index] += callNum
@@ -411,19 +444,24 @@ function main() {
 			gameState.coins[gameState.winner] += totalBet
 		} else {
 			gameState.showhand = true
-			gameState.winner = -1
-			let min_rank = 1e9
+			if(gameState.showCards.length < 5) {
+				gameState.showCards = discardCards.slice(0, 5)
+			}
+
+			let bets = []
+			let ranks = []
 			for(let i = 0; i < totalPlayer; i++) {
+				bets.push(gameState.currentBets[i])
 				if(gameState.fold[i]) {
-					continue
-				}
-				let rank = bestRank(i)
-				if(rank < min_rank) {
-					min_rank = rank
-					gameState.winner = i
+					ranks.push(1e9)
+				} else {
+					ranks.push(bestRank(i))
 				}
 			}
-			gameState.coins[gameState.winner] += totalBet // TODO: handle split bet
+			let results = splitPot(bets, ranks)
+			for(let i = 0; i < totalPlayer; i++) {
+				gameState.coins[i] += results[i]
+			}
 		}
 		gameState.endStage = true
 		updateAll()
